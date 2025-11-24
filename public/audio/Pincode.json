@@ -1,0 +1,29 @@
+{
+  "metadata": {
+    "soundFile": "C:\\Users\\Vinay G\\Desktop\\3dAvatorForm\\public\\audio\\Pincode.ogg",
+    "duration": 3.00
+  },
+  "mouthCues": [
+    { "start": 0.00, "end": 0.18, "value": "X" },
+    { "start": 0.18, "end": 0.24, "value": "B" },
+    { "start": 0.24, "end": 0.29, "value": "C" },
+    { "start": 0.29, "end": 0.73, "value": "B" },
+    { "start": 0.73, "end": 0.77, "value": "H" },
+    { "start": 0.77, "end": 0.88, "value": "C" },
+    { "start": 0.88, "end": 1.16, "value": "B" },
+    { "start": 1.16, "end": 1.30, "value": "F" },
+    { "start": 1.30, "end": 1.38, "value": "A" },
+    { "start": 1.38, "end": 1.66, "value": "B" },
+    { "start": 1.66, "end": 1.76, "value": "A" },
+    { "start": 1.76, "end": 1.83, "value": "B" },
+    { "start": 1.83, "end": 1.90, "value": "G" },
+    { "start": 1.90, "end": 1.97, "value": "C" },
+    { "start": 1.97, "end": 2.11, "value": "F" },
+    { "start": 2.11, "end": 2.19, "value": "A" },
+    { "start": 2.19, "end": 2.32, "value": "B" },
+    { "start": 2.32, "end": 2.39, "value": "C" },
+    { "start": 2.39, "end": 2.60, "value": "E" },
+    { "start": 2.60, "end": 2.74, "value": "B" },
+    { "start": 2.74, "end": 3.00, "value": "X" }
+  ]
+}
