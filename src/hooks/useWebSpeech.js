@@ -1,98 +1,106 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 
-export function useWebSpeech({ onResult, onListeningStart, onListeningStop }) {
+export function useWebSpeech({ onResult }) {
   const recognitionRef = useRef(null);
   const [isListening, setIsListening] = useState(false);
-  const isSpeakingRef = useRef(false);
+  const onResultRef = useRef(onResult);
+
+  useEffect(() => {
+    onResultRef.current = onResult;
+  }, [onResult]);
 
   useEffect(() => {
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      console.error("❌ Speech Recognition not supported in this browser.");
-      onResult?.("Error: Speech Recognition not supported");
+      console.error("❌ Speech Recognition not supported");
       return;
     }
 
     const recognition = new SpeechRecognition();
     recognitionRef.current = recognition;
 
-    recognition.continuous = true;
+    recognition.continuous = false;
     recognition.interimResults = true;
     recognition.language = "en-US";
 
     recognition.onstart = () => {
-      console.log("🎤 Listening started...");
       setIsListening(true);
-      isSpeakingRef.current = false;
-      onListeningStart?.();
+      console.log("🎤 Started listening");
     };
 
     recognition.onresult = (event) => {
-      let transcript = "";
-      let isFinal = false;
+      if (!event.results || !event.results.length) return; // ← prevents undefined length crash
+
+      let final = "";
 
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        const segment = event.results[i][0].transcript;
-        transcript += segment;
-        if (event.results[i].isFinal) isFinal = true;
+        // Protect from undefined results
+        const segment = event.results[i];
+        if (!segment || !segment[0]) continue;
+
+        const text = segment[0].transcript;
+        if (segment.isFinal) final += text + " ";
       }
 
-      if (isFinal && transcript.trim()) {
-        console.log(`✅ Final transcript: "${transcript.trim()}"`);
-        isSpeakingRef.current = true;
-        onResult?.(transcript.trim());
-      } else if (transcript.trim() && !isSpeakingRef.current) {
-        console.log(`🔵 Interim: "${transcript.trim()}"`);
+      if (final.trim()) {
+        console.log("🔊 Final speech:", final.trim());
+        onResultRef.current?.(final.trim());
       }
     };
 
     recognition.onerror = (event) => {
-      console.error("❌ Speech Recognition error:", event.error);
-      onResult?.(`Error: ${event.error}`);
+      console.error("❌ Speech error:", event.error);
     };
 
     recognition.onend = () => {
-      console.log("🛑 Listening stopped");
+      console.log("🛑 Speech ended");
       setIsListening(false);
-      onListeningStop?.();
     };
 
     return () => {
       try {
         recognition.abort();
-      } catch (err) {
-        console.error("Error aborting recognition:", err);
-      }
+      } catch {}
     };
-  }, [onResult, onListeningStart, onListeningStop]);
+  }, []);
+
+  // ---- SAFE START ----
+  const safeStart = (rec) => {
+    try {
+      rec.start();
+    } catch (err) {
+      console.warn("⚠️ start() blocked, retrying...");
+      setTimeout(() => {
+        try {
+          rec.start();
+        } catch (e) {
+          console.error("❌ Retry failed:", e.message);
+        }
+      }, 10); // Chrome needs 2–10ms cooldown
+    }
+  };
 
   const startListening = useCallback(() => {
-    try {
-      if (recognitionRef.current && !isListening) {
-        recognitionRef.current.start();
-        console.log("🎤 Manually started listening");
-      }
-    } catch (err) {
-      console.error("Error starting listening:", err);
+    const rec = recognitionRef.current;
+    if (!rec) return;
+
+    if (isListening) {
+      rec.stop();
+      return setTimeout(() => safeStart(rec), 10);
     }
+
+    safeStart(rec);
   }, [isListening]);
 
   const stopListening = useCallback(() => {
+    const rec = recognitionRef.current;
+    if (!rec) return;
     try {
-      if (recognitionRef.current && isListening) {
-        recognitionRef.current.stop();
-        console.log("🛑 Manually stopped listening");
-      }
-    } catch (err) {
-      console.error("Error stopping listening:", err);
-    }
-  }, [isListening]);
+      rec.stop();
+    } catch {}
+  }, []);
 
-  return {
-    isListening,
-    startListening,
-    stopListening,
-  };
+  return { isListening, startListening, stopListening };
 }

@@ -1,328 +1,195 @@
-// pages/VoiceForm.jsx
-import React, { useState, useCallback, useEffect, useRef } from "react";
-import VoiceInputField from "./components/VoiceInputField";
-import ThreeModel from "./components/ThreeModel";
+import React, { useState, useCallback, useRef, Suspense } from "react";
+import { Canvas, useThree } from "@react-three/fiber";
+import {
+  Environment,
+  Html,
+  OrbitControls,
+  PerspectiveCamera,
+  useTexture,
+} from "@react-three/drei";
 import { useWebSpeech } from "../hooks/useWebSpeech";
-import { Experience } from "../components/Experience";
-import { Canvas } from "@react-three/fiber";
+import FaceV3 from "../components/FaceV3";
+import { FullCharactor } from "../components/FullCharactor";
+import Experience from "../components/Experience";
 
-// Typing Animation Hook
-function useTypingAnimation(text, speed = 50) {
-  const [displayedText, setDisplayedText] = useState("");
+export default function VoiceForm() {
+  const [isLoading, setisLoading] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [showLoader, setShowLoader] = useState(true);
 
-  useEffect(() => {
-    if (!text) {
-      setDisplayedText("");
-      return;
-    }
+  const [message, setMessage] = useState("");
+  const faceRef = useRef(null);
 
-    let index = 0;
-    const interval = setInterval(() => {
-      setDisplayedText(text.slice(0, index + 1));
-      index++;
-      if (index >= text.length) {
-        clearInterval(interval);
-      }
-    }, speed);
+  const sendMessage = useCallback((text) => {
+    const value = text?.trim();
+    if (!value) return;
 
-    return () => clearInterval(interval);
-  }, [text, speed]);
-
-  return displayedText;
-}
-
-export default function FormData() {
-  const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    PhoneNumber: "",
-    City: "",
-    pinCode: "",
-  });
-  const [currentField, setCurrentField] = useState("firstName");
-  const [audioFile, setAudioFile] = useState("Introduction");
-  const [scriptStatus, setScriptStatus] = useState(false);
-  const [isComplete, setIsComplete] = useState(false);
-  const [error, setError] = useState("");
-  const [manualMode, setManualMode] = useState(false);
-
-  const fieldsOrder = [
-    "firstName",
-    "lastName",
-    "PhoneNumber",
-    "City",
-    "pinCode",
-  ];
-  const formDataRef = useRef(formData);
-
-  // Typing animation for each field
-  const animatedFirstName = useTypingAnimation(formData.firstName);
-  const animatedLastName = useTypingAnimation(formData.lastName);
-  const animatedPhoneNumber = useTypingAnimation(formData.PhoneNumber);
-  const animatedCity = useTypingAnimation(formData.City);
-  const animatedPinCode = useTypingAnimation(formData.pinCode);
-
-  useEffect(() => {
-    formDataRef.current = formData;
-  }, [formData]);
+    faceRef.current?.speak(value);
+    setMessage("");
+  }, []);
 
   const handleSpeech = useCallback(
     (text) => {
-      if (!text || text.trim() === "") return;
-
-      // Handle errors
-      if (text.startsWith("Error:")) {
-        console.error("❌ Speech error:", text);
-        setError(text);
-        setTimeout(() => setError(""), 3000);
+      if (!text?.trim()) {
+        sendMessage("i didn't catch that, could you please repeat?");
         return;
       }
+      // setTimeout(() => stopListening, 5000);
 
-      console.log(`🎤 Captured "${text.trim()}" for ${currentField}`);
-      setError("");
-
-      setFormData((prev) => {
-        const updated = {
-          ...prev,
-          [currentField]: text.trim(),
-        };
-        console.log("📝 Updated form:", updated);
-        return updated;
-      });
-
-      // Move to next field
-      const nextIndex = fieldsOrder.indexOf(currentField) + 1;
-      if (nextIndex < fieldsOrder.length) {
-        setTimeout(() => {
-          setCurrentField(fieldsOrder[nextIndex]);
-        }, 500);
-      } else {
-        // All fields complete
-        setTimeout(() => {
-          setIsComplete(true);
-          console.log("✅ All fields captured:", formDataRef.current);
-        }, 500);
-      }
+      sendMessage(text);
     },
-    [currentField]
+    [sendMessage]
   );
 
   const { isListening, startListening, stopListening } = useWebSpeech({
     onResult: handleSpeech,
-    onListeningStart: () => console.log("🎤 Microphone ON"),
-    onListeningStop: () => console.log("🎤 Microphone OFF"),
   });
 
-  useEffect(() => {
-    console.log("🎧 Now listening for:", currentField);
-    if (!isComplete && currentField) {
-      if (currentField === "lastName") {
-        setAudioFile("LastName");
-      } else if (currentField === "PhoneNumber") {
-        setAudioFile("PhoneNumber");
-      } else if (currentField === "City") {
-        setAudioFile("City");
-      } else if (currentField === "pinCode") {
-        setAudioFile("Pincode");
-      }
-
-      // startListening();
-      console.log("started");
-    }
-  }, [currentField, manualMode, isComplete, startListening]);
-
-  const handleReset = () => {
-    setFormData({
-      firstName: "",
-      lastName: "",
-      PhoneNumber: "",
-      City: "",
-      pinCode: "",
-    });
-    setCurrentField("firstName");
-    setIsComplete(false);
-    setError("");
-    stopListening();
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log("📤 Submitting form:", formData);
-    alert("Form submitted! Check console for data.");
+  const toggleMic = () => {
+    isListening ? stopListening() : startListening();
   };
 
   return (
-    <div className="h-full flex  overflow-hidden bg-linear-to-br from-blue-50 to-indigo-100">
-      <div className="w-full h-screen overflow-hidden">
-        {" "}
-        {/* <ThreeModel /> */}
-        <Canvas
-          shadows
-          camera={{ position: [0, 0, 8], fov: 45 }}
-          className="h-screen"
-        >
-          <color attach="background" args={["#ececec"]} />
-          <Experience
-            script={audioFile}
-            scriptStatus={scriptStatus}
-            setScriptStatus={setScriptStatus}
-            startListening={startListening}
-          />
-        </Canvas>
-      </div>
-      <div className="w-full bg-white shadow-2xl   border border-gray-200">
-        <h2 className="text-2xl font-bold text-center text-gray-800 pt-8">
-          Meta Form
-        </h2>
-        {/* {error && (
-          <p className="text-center text-red-500 font-medium mt-4">{error}</p>
-        )} */}
-        {/* <p className="text-center text-gray-500 text-sm mb-6">
-          {isComplete
-            ? "✅ Form Complete!"
-            : `${
-                isListening ? "🎤 Listening" : "🔴 Not Listening"
-              } - ${currentField}`}
-        </p> */}
-        {/* Status Bar */}
-        {currentField !== "firstName" && (
-          <div className="m-4 h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div
-              className={`h-full transition-all duration-300 ${
-                isListening
-                  ? "bg-linear-to-r from-green-500 to-green-600"
-                  : "bg-linear-to-r from-blue-500 to-indigo-600"
-              }`}
-              style={{
-                width: `${
-                  ((fieldsOrder.indexOf(currentField) + 1) /
-                    fieldsOrder.length) *
-                  100
-                }%`,
-              }}
-            />
-          </div>
-        )}
-
-        {/* Mode Toggle
-        <div className="mb-6 flex gap-2">
+    <div className="h-screen w-full flex relative bg-gray-50">
+      <Canvas camera={{ position: [0, 0, 8], fov: 45 }}>
+        <color attach="background" args={["#ececec"]} />
+        {/* <Suspense
+          fallback={
+            <Html>
+              <div className="text-xl font-bold">Loading...</div>
+            </Html>
+          }
+        > */}
+        <Experience
+          faceRef={faceRef}
+          startListening={startListening}
+          setIsLoading={setisLoading}
+          setIsCompleted={setIsCompleted}
+          setShowLoader={setShowLoader}
+          showLoader={showLoader}
+        />
+        {/* </Suspense> */}
+      </Canvas>
+      {!showLoader && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-md p-4 bg-transparent backdrop-blur-lg rounded-xl shadow-lg flex gap-2 ">
           <button
-            onClick={toggleManualMode}
-            className={`flex-1 px-4 py-2 rounded-lg font-semibold text-sm transition ${
-              manualMode
-                ? "bg-yellow-500 text-white hover:bg-yellow-600"
-                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+            onClick={toggleMic}
+            disabled={isLoading || isCompleted}
+            className={`px-3 py-2 rounded-full cursor-pointer  ${
+              isListening ? "bg-green-500 text-white" : "bg-gray-200"
             }`}
           >
-            {manualMode ? "📱 Manual Mode" : "🤖 Auto Mode"}
+            {isListening ? (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 20 20"
+                fill="none"
+              >
+                <g clip-path="url(#clip0_13155_63964)">
+                  <path
+                    d="M15.832 7.49992C16.053 7.49992 16.265 7.58772 16.4213 7.744C16.5776 7.90028 16.6654 8.11224 16.6654 8.33325C16.6655 9.95702 16.0731 11.525 14.9992 12.743C13.9253 13.9609 12.4439 14.7451 10.8329 14.9483L10.832 16.6666H13.332C13.553 16.6666 13.765 16.7544 13.9213 16.9107C14.0776 17.0669 14.1654 17.2789 14.1654 17.4999C14.1654 17.7209 14.0776 17.9329 13.9213 18.0892C13.765 18.2455 13.553 18.3333 13.332 18.3333H6.66536C6.44435 18.3333 6.23239 18.2455 6.07611 18.0892C5.91983 17.9329 5.83203 17.7209 5.83203 17.4999C5.83203 17.2789 5.91983 17.0669 6.07611 16.9107C6.23239 16.7544 6.44435 16.6666 6.66536 16.6666H9.16536V14.9483C7.55421 14.7453 6.07254 13.9612 4.99849 12.7432C3.92445 11.5253 3.33188 9.95714 3.33203 8.33325C3.33203 8.11224 3.41983 7.90028 3.57611 7.744C3.73239 7.58772 3.94435 7.49992 4.16536 7.49992C4.38638 7.49992 4.59834 7.58772 4.75462 7.744C4.9109 7.90028 4.9987 8.11224 4.9987 8.33325C4.9987 9.65933 5.52548 10.9311 6.46316 11.8688C7.40085 12.8065 8.67262 13.3333 9.9987 13.3333C11.3248 13.3333 12.5965 12.8065 13.5342 11.8688C14.4719 10.9311 14.9987 9.65933 14.9987 8.33325C14.9987 8.11224 15.0865 7.90028 15.2428 7.744C15.3991 7.58772 15.611 7.49992 15.832 7.49992ZM9.9987 0.833252C10.8828 0.833252 11.7306 1.18444 12.3557 1.80956C12.9808 2.43468 13.332 3.28253 13.332 4.16659V8.33325C13.332 9.21731 12.9808 10.0652 12.3557 10.6903C11.7306 11.3154 10.8828 11.6666 9.9987 11.6666C9.11464 11.6666 8.2668 11.3154 7.64167 10.6903C7.01655 10.0652 6.66536 9.21731 6.66536 8.33325V4.16659C6.66536 3.28253 7.01655 2.43468 7.64167 1.80956C8.2668 1.18444 9.11464 0.833252 9.9987 0.833252Z"
+                    fill="black"
+                  />
+                </g>
+                <defs>
+                  <clipPath id="clip0_13155_63964">
+                    <rect width="20" height="20" fill="white" />
+                  </clipPath>
+                </defs>
+              </svg>
+            ) : (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 20 20"
+                fill="none"
+              >
+                <g clip-path="url(#clip0_13155_64112)">
+                  <path
+                    d="M2.5 2.5L17.5 17.5"
+                    stroke="black"
+                    stroke-width="1.66667"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M7.5 4.16663C7.5 3.50358 7.76339 2.8677 8.23223 2.39886C8.70107 1.93002 9.33696 1.66663 10 1.66663C10.663 1.66663 11.2989 1.93002 11.7678 2.39886C12.2366 2.8677 12.5 3.50358 12.5 4.16663V8.33329C12.5 8.58009 12.4635 8.82553 12.3917 9.06163M10.725 10.7283C10.3514 10.8415 9.95647 10.8656 9.57186 10.7988C9.18724 10.7319 8.82363 10.5759 8.51015 10.3433C8.19666 10.1107 7.94201 9.80783 7.7666 9.45907C7.59118 9.11032 7.49988 8.72534 7.5 8.33496V7.50163"
+                    stroke="black"
+                    stroke-width="1.66667"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M4.16797 8.33325C4.16779 9.38604 4.45252 10.4193 4.99198 11.3233C5.53144 12.2274 6.30551 12.9686 7.23211 13.4684C8.1587 13.9682 9.20328 14.2079 10.2551 14.1621C11.3069 14.1163 12.3267 13.7867 13.2063 13.2083M14.873 11.5416C15.5012 10.5896 15.835 9.47378 15.833 8.33325"
+                    stroke="black"
+                    stroke-width="1.66667"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M6.66797 17.5H13.3346"
+                    stroke="black"
+                    stroke-width="1.66667"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M10 14.1666V17.5"
+                    stroke="black"
+                    stroke-width="1.66667"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </g>
+                <defs>
+                  <clipPath id="clip0_13155_64112">
+                    <rect width="20" height="20" fill="white" />
+                  </clipPath>
+                </defs>
+              </svg>
+            )}
           </button>
-        </div> */}
-        {/* Manual Controls (visible when in manual mode) */}
-        {/* {manualMode && (
-          <div className="mb-6 flex gap-2">
-            <button
-              onClick={startListening}
-              disabled={isListening}
-              className={`flex-1 px-4 py-2 rounded-lg font-semibold text-sm transition ${
-                isListening
-                  ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                  : "bg-green-500 text-white hover:bg-green-600"
-              }`}
-            >
-              ▶️ Start Listening
-            </button>
-            <button
-              onClick={stopListening}
-              disabled={!isListening}
-              className={`flex-1 px-4 py-2 rounded-lg font-semibold text-sm transition ${
-                !isListening
-                  ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                  : "bg-red-500 text-white hover:bg-red-600"
-              }`}
-            >
-              ⏹️ Stop Listening
-            </button>
-          </div>
-        )} */}
+          <input
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Speak or Enter the Message..."
+            className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-0  "
+            // onKeyDown={(e) => e.key === "Enter" && sendMessage(message)}
+          />
 
-        <form className="flex flex-col gap-6 p-6" onSubmit={handleSubmit}>
-          <VoiceInputField
-            label="First Name"
-            name="firstName"
-            value={animatedFirstName}
-            active={currentField === "firstName" && isListening}
-          />
-          <VoiceInputField
-            label="Last Name"
-            name="lastName"
-            value={animatedLastName}
-            active={currentField === "lastName" && isListening}
-          />
-          <VoiceInputField
-            label="Phone Number"
-            name="PhoneNumber"
-            value={animatedPhoneNumber}
-            active={currentField === "PhoneNumber" && isListening}
-          />
-          <VoiceInputField
-            label="City"
-            name="City"
-            value={animatedCity}
-            active={currentField === "City" && isListening}
-          />
-          <VoiceInputField
-            label="Pin Code"
-            name="pinCode"
-            value={animatedPinCode}
-            active={currentField === "pinCode" && isListening}
-          />
-        </form>
-        {/* <div className="flex gap-3 mt-8">
           <button
-            onClick={handleReset}
-            className="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold rounded-lg transition"
+            onClick={() => sendMessage(message)}
+            disabled={isLoading || isCompleted}
+            className={`px-3 py-2 bg-black text-white rounded-lg  cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}
           >
-            Reset
+            Send
           </button>
-          <button
-            onClick={handleSubmit}
-            disabled={!isComplete}
-            className={`flex-1 px-4 py-2 font-semibold rounded-lg transition ${
-              isComplete
-                ? "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
-                : "bg-gray-300 text-gray-500 cursor-not-allowed"
-            }`}
-          >
-            Submit
-          </button>
-        </div> */}
-        {/* Data Display */}
-        {/* {isComplete && (
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200 animate-fadeIn">
-            <h3 className="font-semibold text-gray-700 mb-3">Captured Data:</h3>
-            <div className="space-y-2">
-              <div className="text-sm">
-                <span className="font-medium text-gray-600">First Name:</span>
-                <p className="text-gray-800 font-mono break-words">
-                  {formData.firstName}
-                </p>
-              </div>
-              <div className="text-sm">
-                <span className="font-medium text-gray-600">Last Name:</span>
-                <p className="text-gray-800 font-mono break-words">
-                  {formData.lastName}
-                </p>
-              </div>
-              <div className="text-sm">
-                <span className="font-medium text-gray-600">Email:</span>
-                <p className="text-gray-800 font-mono break-words">
-                  {formData.email}
-                </p>
-              </div>
-            </div>
+        </div>
+      )}
+      {isLoading && !showLoader && (
+        <div class="absolute top-[15%] right-0 left-[15%] flex space-x-2 justify-center items-center">
+          <div class="h-5 w-5 border-2 border-black rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+          <div class="h-5 w-5 border-2 border-black rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+          <div class="h-5 w-5 border-2 border-black rounded-full animate-bounce  [animation-delay:-0.25s]"></div>
+          <div class="h-5 w-5 border-2 border-black rounded-full animate-bounce"></div>
+        </div>
+      )}
+
+      {showLoader && (
+        <div className="absolute bg-transparent backdrop-blur-lg  h-full flex flex-col items-center gap-3 left-0 right-0 top-0 bottom-0 justify-center">
+          <div className="flex space-x-2">
+            <div className="h-4 w-4 border-2 border-black rounded-full animate-bounce [animation-delay:-0.3s]" />
+            <div className="h-4 w-4 border-2 border-black rounded-full animate-bounce [animation-delay:-0.15s]" />
+            <div className="h-4 w-4 border-2 border-black rounded-full animate-bounce" />
           </div>
-        )} */}
-      </div>
+          <span className="text-lg font-medium text-black-700">
+            Please wait…
+          </span>
+        </div>
+      )}
     </div>
   );
 }
