@@ -60,9 +60,9 @@ export const Experience = ({
       /> */}
 
       <Environment preset="warehouse" />
-      <mesh>
+      <mesh renderOrder={-1}>
         <planeGeometry args={[viewport.width, viewport.height]} />
-        <meshBasicMaterial map={texture} />
+        <meshBasicMaterial map={texture} depthWrite={false} depthTest={false} />
       </mesh>
     </>
   );

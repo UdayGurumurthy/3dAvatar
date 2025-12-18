@@ -49,7 +49,7 @@ const AZURE_TO_GLTF = {
 export const FullCharactor = forwardRef(
   ({ script, startListening, faceV3CallbackRef, ...props }, ref) => {
     const group = React.useRef();
-    const { scene, animations } = useGLTF("/models/FullCharactor.glb");
+    const { scene, animations } = useGLTF("/models/FaceCharactorV2.glb");
     const clone = React.useMemo(() => SkeletonUtils.clone(scene), [scene]);
     const { nodes, materials } = useGraph(clone);
     const { actions, names } = useAnimations(animations, group);
@@ -314,6 +314,12 @@ export const FullCharactor = forwardRef(
         }
       };
     }, []);
+    useEffect(() => {
+      clone.position.set(0, 0, 0);
+      clone.rotation.set(0, 0, 0);
+      clone.scale.set(1, 1, 1);
+      clone.updateMatrixWorld(true);
+    }, [clone]);
 
     return (
       <group ref={group} {...props} dispose={null} scale={6}>
@@ -323,144 +329,21 @@ export const FullCharactor = forwardRef(
               <div
                 onClick={handleStart}
                 className="cursor-pointer px-6 py-3 text-lg md:text-xl rounded-lg 
-                      bg-black/60 text-white border border-white/40 
-                      backdrop-blur-sm hover:bg-black/80 transition-all"
+            bg-black/60 text-white border border-white/40 
+            backdrop-blur-sm hover:bg-black/80 transition-all"
               >
                 Click to Begin
               </div>
             </div>
           </Html>
         )}
-        <group name="Scene">
-          <group name="BP_Hadley" scale={0.45} position={[0, -55, 1.494]}>
-            <group name="Body">
-              <group name="root">
-                <primitive object={nodes.pelvis} />
-                <skinnedMesh
-                  name="Body001"
-                  geometry={nodes.Body001.geometry}
-                  material={materials.MI_BodySynthesized}
-                  skeleton={nodes.Body001.skeleton}
-                />
-              </group>
-            </group>
-            <group name="Face" position={[0, 0, -0.1]}>
-              <group name="root001">
-                <primitive object={nodes.pelvis_1} />
-                <group name="Face001">
-                  <skinnedMesh
-                    name="Face_1"
-                    geometry={nodes.Face_1.geometry}
-                    material={materials["MID_MI_HeadSynthesized_Baked_0.001"]}
-                    skeleton={nodes.Face_1.skeleton}
-                    morphTargetDictionary={nodes.Face_1.morphTargetDictionary}
-                    morphTargetInfluences={nodes.Face_1.morphTargetInfluences}
-                  />
-                  <skinnedMesh
-                    name="Face_2"
-                    geometry={nodes.Face_2.geometry}
-                    material={materials["Fbx Default Material 1.001"]}
-                    skeleton={nodes.Face_2.skeleton}
-                    morphTargetDictionary={nodes.Face_2.morphTargetDictionary}
-                    morphTargetInfluences={nodes.Face_2.morphTargetInfluences}
-                  />
-                  <skinnedMesh
-                    name="Face_3"
-                    geometry={nodes.Face_3.geometry}
-                    material={materials["Fbx Default Material 2.001"]}
-                    skeleton={nodes.Face_3.skeleton}
-                    morphTargetDictionary={nodes.Face_3.morphTargetDictionary}
-                    morphTargetInfluences={nodes.Face_3.morphTargetInfluences}
-                  />
-                  <skinnedMesh
-                    name="Face_4"
-                    geometry={nodes.Face_4.geometry}
-                    material={materials["Fbx Default Material 3.001"]}
-                    skeleton={nodes.Face_4.skeleton}
-                    morphTargetDictionary={nodes.Face_4.morphTargetDictionary}
-                    morphTargetInfluences={nodes.Face_4.morphTargetInfluences}
-                  />
-                  <skinnedMesh
-                    name="Face_5"
-                    geometry={nodes.Face_5.geometry}
-                    material={materials["Fbx Default Material 4.001"]}
-                    skeleton={nodes.Face_5.skeleton}
-                    morphTargetDictionary={nodes.Face_5.morphTargetDictionary}
-                    morphTargetInfluences={nodes.Face_5.morphTargetInfluences}
-                  />
-                  <skinnedMesh
-                    name="Face_6"
-                    geometry={nodes.Face_6.geometry}
-                    material={materials["Fbx Default Material 5.001"]}
-                    skeleton={nodes.Face_6.skeleton}
-                    morphTargetDictionary={nodes.Face_6.morphTargetDictionary}
-                    morphTargetInfluences={nodes.Face_6.morphTargetInfluences}
-                  />
-                  <skinnedMesh
-                    name="Face_7"
-                    geometry={nodes.Face_7.geometry}
-                    material={materials["MID_M_EyelashLowerLODs_Inst_6.001"]}
-                    skeleton={nodes.Face_7.skeleton}
-                    morphTargetDictionary={nodes.Face_7.morphTargetDictionary}
-                    morphTargetInfluences={nodes.Face_7.morphTargetInfluences}
-                  />
-                  <skinnedMesh
-                    name="Face_8"
-                    geometry={nodes.Face_8.geometry}
-                    material={materials["Fbx Default Material 7.001"]}
-                    skeleton={nodes.Face_8.skeleton}
-                    morphTargetDictionary={nodes.Face_8.morphTargetDictionary}
-                    morphTargetInfluences={nodes.Face_8.morphTargetInfluences}
-                  />
-                  <skinnedMesh
-                    name="Face_9"
-                    geometry={nodes.Face_9.geometry}
-                    material={materials["Fbx Default Material 8.001"]}
-                    skeleton={nodes.Face_9.skeleton}
-                    morphTargetDictionary={nodes.Face_9.morphTargetDictionary}
-                    morphTargetInfluences={nodes.Face_9.morphTargetInfluences}
-                  />
-                </group>
-              </group>
-            </group>
-            <group name="Feet">
-              <group name="root004">
-                <primitive object={nodes.pelvis_2} />
-                <skinnedMesh
-                  name="Feet001"
-                  geometry={nodes.Feet001.geometry}
-                  material={materials.M_shs_runningshoes}
-                  skeleton={nodes.Feet001.skeleton}
-                />
-              </group>
-            </group>
-            <group name="Legs">
-              <group name="root003">
-                <primitive object={nodes.pelvis_3} />
-                <skinnedMesh
-                  name="Legs001"
-                  geometry={nodes.Legs001.geometry}
-                  material={materials.M_btm_cargopants}
-                  skeleton={nodes.Legs001.skeleton}
-                />
-              </group>
-            </group>
-            <group name="Torso">
-              <group name="root002">
-                <primitive object={nodes.pelvis_4} />
-                <skinnedMesh
-                  name="Torso001"
-                  geometry={nodes.Torso001.geometry}
-                  material={materials.M_top_sweater}
-                  skeleton={nodes.Torso001.skeleton}
-                />
-              </group>
-            </group>
-          </group>
+
+        <group scale={35} position={[0, -42, 0]}>
+          <primitive object={clone} />
         </group>
       </group>
     );
   }
 );
 export default FullCharactor;
-useGLTF.preload("/models/FullCharactor.glb");
+useGLTF.preload("/models/FaceCharactorV2.glb");
