@@ -10,6 +10,9 @@ import { SkeletonUtils } from "three-stdlib";
 import * as THREE from "three";
 import { useControls } from "leva";
 
+const STATIC_MODEL =
+  "https://avatar-main.s3.ap-south-1.amazonaws.com/face-yes+viseme+updated.glb";
+
 const AZURE_TO_GLTF = {
   0: "",
   1: "Viseme_ID-001",
@@ -42,7 +45,7 @@ export const FullCharactor = forwardRef(
   ) => {
     const group = useRef();
 
-    const glbPath = modelUrl || "/models/FullCharactor.glb";
+    const glbPath = modelUrl || STATIC_MODEL;
     const { scene, animations } = useGLTF(glbPath);
 
     const clone = useMemo(() => SkeletonUtils.clone(scene), [scene]);
@@ -226,11 +229,14 @@ export const FullCharactor = forwardRef(
       setIsLoading(true);
       stopAll();
 
-      const res = await fetch("http://127.0.0.1:8000/api/generate-viseme/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
-      });
+      const res = await fetch(
+        "https://avatar-dev-api.dtskill.com/api/generate-viseme/",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text }),
+        }
+      );
 
       if (!res.ok) return;
 
@@ -283,4 +289,4 @@ export const FullCharactor = forwardRef(
 );
 
 FullCharactor.displayName = "FullCharactor";
-useGLTF.preload("/models/FullCharactor.glb");
+useGLTF.preload(STATIC_MODEL);
