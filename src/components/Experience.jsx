@@ -19,6 +19,7 @@ export const Experience = ({
   setIsLoading,
   setShowLoader,
   showLoader,
+  modelUrl,
 }) => {
   const texture = useTexture("/frontDesk.png");
   const viewport = useThree((state) => state.viewport);
@@ -52,6 +53,7 @@ export const Experience = ({
         setIsCompleted={setIsCompleted}
         setShowLoader={setShowLoader}
         showLoader={showLoader}
+        modelUrl={modelUrl}
       />
       {/* <FaceV3 ref={faceRef} startListening={startListening} /> */}
       <Environment preset="warehouse" />

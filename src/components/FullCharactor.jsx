@@ -1,8 +1,14 @@
-import React, { useEffect, useRef, useMemo, forwardRef, useImperativeHandle, useState } from "react";
-import { useGraph } from "@react-three/fiber";
-import { useGLTF, useAnimations, Html } from "@react-three/drei";
+import React, {
+  useEffect,
+  useRef,
+  useMemo,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
+import { useGLTF, useAnimations } from "@react-three/drei";
 import { SkeletonUtils } from "three-stdlib";
 import * as THREE from "three";
+import { useControls } from "leva";
 
 const AZURE_TO_GLTF = {
   0: "",
@@ -29,167 +35,252 @@ const AZURE_TO_GLTF = {
   21: "Viseme_ID-021",
 };
 
-export const FullCharactor = forwardRef((props, ref) => {
-  const group = useRef();
+export const FullCharactor = forwardRef(
+  (
+    { modelUrl, setShowLoader, setIsLoading, setIsCompleted, ...props },
+    ref
+  ) => {
+    const group = useRef();
 
-  const { scene, animations } = useGLTF("/models/FullCharactor.glb");
-  const clone = useMemo(() => SkeletonUtils.clone(scene), [scene]);
-  const { nodes, materials } = useGraph(clone);
-  const { actions, names } = useAnimations(animations, group);
+    const glbPath = modelUrl || "/models/FullCharactor.glb";
+    const { scene, animations } = useGLTF(glbPath);
 
-  const morphMeshesRef = useRef([]);
-  const audioRef = useRef(null);
-  const visemeTimelineRef = useRef([]);
-  const frameRef = useRef(null);
-  const isSpeakingRef = useRef(false);
+    const clone = useMemo(() => SkeletonUtils.clone(scene), [scene]);
 
-  useEffect(() => {
-    if (!animations) return;
-    animations.forEach((clip) => {
-      clip.tracks = clip.tracks.filter(
-        (t) => !t.name.includes("morphTargetInfluences") && !t.name.toLowerCase().includes("face")
-      );
+    const clonedAnimations = useMemo(
+      () => (animations ? animations.map((a) => a.clone()) : []),
+      [animations]
+    );
+
+    const { actions, names } = useAnimations(clonedAnimations, group);
+
+    const morphMeshesRef = useRef([]);
+    const audioRef = useRef(null);
+    const visemeTimelineRef = useRef([]);
+    const frameRef = useRef(null);
+    const isSpeakingRef = useRef(false);
+
+    const hasAnimations = names.length > 0;
+
+    const hasMorphTargets = useMemo(() => {
+      let found = false;
+      clone.traverse((o) => {
+        if (
+          o.isMesh &&
+          o.morphTargetDictionary &&
+          Object.keys(o.morphTargetDictionary).length
+        ) {
+          found = true;
+        }
+      });
+      return found;
+    }, [clone]);
+
+    const avatarControls = useControls("Avatar", {
+      position: { value: { x: 0, y: -400, z: 1.104 }, step: 0.1 },
+      rotation: { value: { x: 0, y: 0, z: 0 }, step: 0.01 },
+      scale: { value: 300, min: 1, max: 1000, step: 1 },
     });
-  }, [animations]);
 
-  useEffect(() => {
-    const meshes = [];
-    clone.traverse((o) => {
-      if (o.isMesh && o.morphTargetDictionary) {
-        o.morphTargetInfluences.fill(0);
-        meshes.push(o);
+    const animationControls = useControls(
+      "Animations",
+      hasAnimations
+        ? {
+            play: { value: true },
+            clip: { options: names, value: names[0] },
+            speed: { value: 1, min: 0.1, max: 3, step: 0.1 },
+          }
+        : {},
+      [names.join(",")]
+    );
+
+    const visemeControls = useControls("Viseme Tuning", {
+      fadeIn: { value: 140, min: 0, max: 500, step: 1 },
+      fadeOut: { value: 220, min: 0, max: 500, step: 1 },
+      maxStrength: { value: 0.5, min: 0, max: 1, step: 0.01 },
+      smoothing: { value: 0.55, min: 0, max: 1, step: 0.01 },
+    });
+
+    useEffect(() => {
+      if (!hasAnimations) return;
+      Object.values(actions).forEach((a) => a.stop());
+      if (animationControls.play && animationControls.clip) {
+        const action = actions[animationControls.clip];
+        action
+          ?.reset()
+          .setEffectiveTimeScale(animationControls.speed)
+          .fadeIn(0.3)
+          .play();
       }
-    });
-    morphMeshesRef.current = meshes;
+    }, [
+      animationControls.play,
+      animationControls.clip,
+      animationControls.speed,
+      hasAnimations,
+      actions,
+    ]);
 
-    // ⏳ wait 10 seconds, then hide loader
-    const timer = setTimeout(() => {
-      props.setShowLoader(false);
-    }, 5000);
+    useEffect(() => {
+      const meshes = [];
+      clone.traverse((o) => {
+        if (o.isMesh && o.morphTargetDictionary) {
+          o.morphTargetInfluences.fill(0);
+          meshes.push(o);
+        }
+      });
+      morphMeshesRef.current = meshes;
+      const timer = setTimeout(() => setShowLoader(false), 5000);
+      return () => clearTimeout(timer);
+    }, [clone, setShowLoader]);
 
-    return () => clearTimeout(timer);
-  }, [clone]);
+    const morphNames = useMemo(() => {
+      const set = new Set();
+      morphMeshesRef.current.forEach((m) =>
+        Object.keys(m.morphTargetDictionary || {}).forEach((k) => set.add(k))
+      );
+      return Array.from(set);
+    }, [clone]);
 
-  useEffect(() => {
-    if (!actions || !names.length) return;
-    const action = actions[names[0]];
-    if (!action) return;
-    action.reset();
-    action.time = 0.5;
-    action.fadeIn(0.5).play();
-  }, [actions, names]);
+    const morphControls = useControls(
+      "Morph Targets",
+      hasMorphTargets
+        ? morphNames.reduce((acc, name) => {
+            acc[name] = { value: 0, min: 0, max: 1, step: 0.01 };
+            return acc;
+          }, {})
+        : {},
+      [morphNames.join(",")]
+    );
 
-  function stopAll() {
-    isSpeakingRef.current = false;
-    if (frameRef.current) cancelAnimationFrame(frameRef.current);
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-    }
-    morphMeshesRef.current.forEach((m) => m.morphTargetInfluences.fill(0));
-  }
-
-  function startVisemes() {
-    if (!audioRef.current) return;
-    isSpeakingRef.current = true;
-
-    const FADE_IN = 140;
-    const FADE_OUT = 220;
-    const MAX = 0.5;
-    const SMOOTHING = 0.55;
-
-    const animate = () => {
-      if (!isSpeakingRef.current || !audioRef.current) return;
-
-      const now = audioRef.current.currentTime * 1000;
-
+    useEffect(() => {
+      if (!hasMorphTargets || isSpeakingRef.current) return;
       morphMeshesRef.current.forEach((mesh) => {
         const dict = mesh.morphTargetDictionary;
         const infl = mesh.morphTargetInfluences;
-        if (!dict || !infl) return;
+        Object.entries(dict).forEach(([name, idx]) => {
+          if (morphControls[name] !== undefined) {
+            infl[idx] = morphControls[name];
+          }
+        });
+      });
+    }, [morphControls, hasMorphTargets]);
 
-        // 1️⃣ Create target buffer
-        const target = new Float32Array(infl.length);
+    function stopAll() {
+      isSpeakingRef.current = false;
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+      morphMeshesRef.current.forEach((m) => m.morphTargetInfluences.fill(0));
+    }
 
-        // 2️⃣ Accumulate viseme strengths
-        for (const v of visemeTimelineRef.current) {
-          const t = now - v.offset_ms;
-          if (t < -FADE_IN || t > v.duration_ms + FADE_OUT) continue;
+    function startVisemes() {
+      if (!audioRef.current) return;
+      isSpeakingRef.current = true;
 
-          let s = 0;
-          if (t >= 0 && t <= FADE_IN) {
-            s = THREE.MathUtils.smoothstep(t / FADE_IN, 0, 1);
-          } else if (t > FADE_IN && t < v.duration_ms) {
-            s = 1;
-          } else if (t >= v.duration_ms) {
-            s = 1 - THREE.MathUtils.smoothstep((t - v.duration_ms) / FADE_OUT, 0, 1);
+      const FADE_IN = visemeControls.fadeIn;
+      const FADE_OUT = visemeControls.fadeOut;
+      const MAX = visemeControls.maxStrength;
+      const SMOOTHING = visemeControls.smoothing;
+
+      const animate = () => {
+        if (!isSpeakingRef.current || !audioRef.current) return;
+
+        const now = audioRef.current.currentTime * 1000;
+
+        morphMeshesRef.current.forEach((mesh) => {
+          const dict = mesh.morphTargetDictionary;
+          const infl = mesh.morphTargetInfluences;
+          const target = new Float32Array(infl.length);
+
+          for (const v of visemeTimelineRef.current) {
+            const t = now - v.offset_ms;
+            if (t < -FADE_IN || t > v.duration_ms + FADE_OUT) continue;
+
+            let s = 0;
+            if (t <= FADE_IN) s = t / FADE_IN;
+            else if (t < v.duration_ms) s = 1;
+            else s = 1 - (t - v.duration_ms) / FADE_OUT;
+
+            const idx = dict[v.viseme_name];
+            if (idx !== undefined) {
+              target[idx] = Math.max(target[idx], s * MAX);
+            }
           }
 
-          const idx = dict[v.viseme_name];
-          if (idx !== undefined) {
-            target[idx] = Math.max(target[idx], s * MAX);
+          for (let i = 0; i < infl.length; i++) {
+            infl[i] = THREE.MathUtils.lerp(infl[i], target[i], SMOOTHING);
           }
-        }
+        });
 
-        // 3️⃣ Smoothly blend current → target
-        for (let i = 0; i < infl.length; i++) {
-          infl[i] = THREE.MathUtils.lerp(infl[i], target[i], SMOOTHING);
-        }
+        frameRef.current = requestAnimationFrame(animate);
+        setIsLoading(false);
+      };
+
+      animate();
+      setIsCompleted(false);
+    }
+
+    async function speak(text) {
+      setIsLoading(true);
+      stopAll();
+
+      const res = await fetch("http://127.0.0.1:8000/api/generate-viseme/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
       });
 
-      frameRef.current = requestAnimationFrame(animate);
-      props.setIsLoading(false);
-    };
+      if (!res.ok) return;
 
-    animate();
-    props.setIsCompleted(false);
-  }
+      const data = await res.json();
 
-  async function speak(text) {
-    props.setIsLoading(true);
-    if (!text) return;
+      visemeTimelineRef.current = data.visemes.map((v, i, arr) => ({
+        viseme_name: AZURE_TO_GLTF[v.viseme_id],
+        offset_ms: v.offset_ms,
+        duration_ms: arr[i + 1]?.offset_ms - v.offset_ms || 120,
+      }));
 
-    stopAll();
+      const bytes = Uint8Array.from(atob(data.audio_file_base64), (c) =>
+        c.charCodeAt(0)
+      );
 
-    const res = await fetch("http://127.0.0.1:8000/api/generate-viseme/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
-    });
+      const audioURL = URL.createObjectURL(
+        new Blob([bytes], { type: data.mime_type || "audio/mpeg" })
+      );
 
-    if (!res.ok) return;
+      audioRef.current = new Audio(audioURL);
+      audioRef.current.onended = stopAll;
 
-    const data = await res.json();
-
-    visemeTimelineRef.current = (data.visemes || []).map((v, i, arr) => ({
-      viseme_name: AZURE_TO_GLTF[v.viseme_id],
-      offset_ms: v.offset_ms,
-      duration_ms: arr[i + 1]?.offset_ms - v.offset_ms || 120,
-    }));
-
-    const bytes = Uint8Array.from(atob(data.audio_file_base64), (c) => c.charCodeAt(0));
-
-    const audioURL = URL.createObjectURL(new Blob([bytes], { type: data.mime_type || "audio/mpeg" }));
-
-    audioRef.current = new Audio(audioURL);
-    audioRef.current.onended = stopAll;
-
-    startVisemes();
-    audioRef.current.play();
-
-    if (actions["Talking"]) {
-      actions["Talking"].reset().fadeIn(0.2).play();
+      startVisemes();
+      audioRef.current.play();
     }
+
+    useImperativeHandle(ref, () => ({ speak }));
+
+    return (
+      <group
+        ref={group}
+        dispose={null}
+        position={[
+          avatarControls.position.x,
+          avatarControls.position.y,
+          avatarControls.position.z,
+        ]}
+        rotation={[
+          avatarControls.rotation.x,
+          avatarControls.rotation.y,
+          avatarControls.rotation.z,
+        ]}
+        scale={avatarControls.scale}
+        {...props}
+      >
+        <primitive object={clone} />
+      </group>
+    );
   }
-
-  useImperativeHandle(ref, () => ({ speak }));
-
-  return (
-    <group ref={group} {...props} dispose={null} scale={300} position={[0, -400, 1.104]}>
-      <primitive object={clone} />
-    </group>
-  );
-});
+);
 
 FullCharactor.displayName = "FullCharactor";
 useGLTF.preload("/models/FullCharactor.glb");
