@@ -1,11 +1,4 @@
-import React, {
-  useEffect,
-  useRef,
-  useMemo,
-  forwardRef,
-  useImperativeHandle,
-  useState,
-} from "react";
+import React, { useEffect, useRef, useMemo, forwardRef, useImperativeHandle, useState } from "react";
 import { useGraph } from "@react-three/fiber";
 import { useGLTF, useAnimations, Html } from "@react-three/drei";
 import { SkeletonUtils } from "three-stdlib";
@@ -39,7 +32,7 @@ const AZURE_TO_GLTF = {
 export const FullCharactor = forwardRef((props, ref) => {
   const group = useRef();
 
-  const { scene, animations } = useGLTF("/models/FaceCharactorV2.glb");
+  const { scene, animations } = useGLTF("/models/FullCharactor.glb");
   const clone = useMemo(() => SkeletonUtils.clone(scene), [scene]);
   const { nodes, materials } = useGraph(clone);
   const { actions, names } = useAnimations(animations, group);
@@ -54,9 +47,7 @@ export const FullCharactor = forwardRef((props, ref) => {
     if (!animations) return;
     animations.forEach((clip) => {
       clip.tracks = clip.tracks.filter(
-        (t) =>
-          !t.name.includes("morphTargetInfluences") &&
-          !t.name.toLowerCase().includes("face")
+        (t) => !t.name.includes("morphTargetInfluences") && !t.name.toLowerCase().includes("face")
       );
     });
   }, [animations]);
@@ -131,9 +122,7 @@ export const FullCharactor = forwardRef((props, ref) => {
           } else if (t > FADE_IN && t < v.duration_ms) {
             s = 1;
           } else if (t >= v.duration_ms) {
-            s =
-              1 -
-              THREE.MathUtils.smoothstep((t - v.duration_ms) / FADE_OUT, 0, 1);
+            s = 1 - THREE.MathUtils.smoothstep((t - v.duration_ms) / FADE_OUT, 0, 1);
           }
 
           const idx = dict[v.viseme_name];
@@ -178,13 +167,9 @@ export const FullCharactor = forwardRef((props, ref) => {
       duration_ms: arr[i + 1]?.offset_ms - v.offset_ms || 120,
     }));
 
-    const bytes = Uint8Array.from(atob(data.audio_file_base64), (c) =>
-      c.charCodeAt(0)
-    );
+    const bytes = Uint8Array.from(atob(data.audio_file_base64), (c) => c.charCodeAt(0));
 
-    const audioURL = URL.createObjectURL(
-      new Blob([bytes], { type: data.mime_type || "audio/mpeg" })
-    );
+    const audioURL = URL.createObjectURL(new Blob([bytes], { type: data.mime_type || "audio/mpeg" }));
 
     audioRef.current = new Audio(audioURL);
     audioRef.current.onended = stopAll;
@@ -200,17 +185,11 @@ export const FullCharactor = forwardRef((props, ref) => {
   useImperativeHandle(ref, () => ({ speak }));
 
   return (
-    <group
-      ref={group}
-      {...props}
-      dispose={null}
-      scale={100}
-      position={[0, -60, 1.104]}
-    >
+    <group ref={group} {...props} dispose={null} scale={300} position={[0, -400, 1.104]}>
       <primitive object={clone} />
     </group>
   );
 });
 
 FullCharactor.displayName = "FullCharactor";
-useGLTF.preload("/models/FaceCharactorV2.glb");
+useGLTF.preload("/models/FullCharactor.glb");
