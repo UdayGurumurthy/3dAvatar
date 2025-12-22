@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo, forwardRef, useImperativeHandle, useState } from "react";
+import React, { useEffect, useRef, useMemo, forwardRef, useImperativeHandle } from "react";
 import { useGraph } from "@react-three/fiber";
 import { useGLTF, useAnimations, Html } from "@react-three/drei";
 import { SkeletonUtils } from "three-stdlib";
@@ -32,7 +32,7 @@ const AZURE_TO_GLTF = {
 export const FullCharactor = forwardRef((props, ref) => {
   const group = useRef();
 
-  const { scene, animations } = useGLTF("/models/FullCharactor.glb");
+  const { scene, animations } = useGLTF("/models/face.glb");
   const clone = useMemo(() => SkeletonUtils.clone(scene), [scene]);
   const { nodes, materials } = useGraph(clone);
   const { actions, names } = useAnimations(animations, group);
@@ -192,4 +192,4 @@ export const FullCharactor = forwardRef((props, ref) => {
 });
 
 FullCharactor.displayName = "FullCharactor";
-useGLTF.preload("/models/FullCharactor.glb");
+useGLTF.preload("/models/face.glb");
