@@ -32,7 +32,7 @@ const AZURE_TO_GLTF = {
 export const FullCharactor = forwardRef((props, ref) => {
   const group = useRef();
 
-  const { scene, animations } = useGLTF("/models/face.glb");
+  const { scene, animations } = useGLTF("/models/newFace.glb");
   const clone = useMemo(() => SkeletonUtils.clone(scene), [scene]);
   const { nodes, materials } = useGraph(clone);
   const { actions, names } = useAnimations(animations, group);
@@ -42,6 +42,7 @@ export const FullCharactor = forwardRef((props, ref) => {
   const visemeTimelineRef = useRef([]);
   const frameRef = useRef(null);
   const isSpeakingRef = useRef(false);
+  const audioStartTimeRef = useRef(0);
 
   useEffect(() => {
     if (!animations) return;
@@ -93,15 +94,16 @@ export const FullCharactor = forwardRef((props, ref) => {
     if (!audioRef.current) return;
     isSpeakingRef.current = true;
 
-    const FADE_IN = 140;
-    const FADE_OUT = 220;
-    const MAX = 0.5;
+    const FADE_IN = 110;
+    const FADE_OUT = 110;
+    const MAX = 0.65;
     const SMOOTHING = 0.55;
 
     const animate = () => {
       if (!isSpeakingRef.current || !audioRef.current) return;
 
-      const now = audioRef.current.currentTime * 1000;
+      const AUDIO_LATENCY_MS = 120; // tune 70–120
+      const now = performance.now() - audioStartTimeRef.current - AUDIO_LATENCY_MS;
 
       morphMeshesRef.current.forEach((mesh) => {
         const dict = mesh.morphTargetDictionary;
@@ -148,19 +150,16 @@ export const FullCharactor = forwardRef((props, ref) => {
   async function speak(text) {
     props.setIsLoading(true);
     if (!text) return;
-
     stopAll();
 
-    const res = await fetch("http://127.0.0.1:8000/api/generate-viseme/", {
+    const res = await fetch("https://avatar-dev-api.dtskill.com/api/generate-viseme/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
     });
-
     if (!res.ok) return;
 
     const data = await res.json();
-
     visemeTimelineRef.current = (data.visemes || []).map((v, i, arr) => ({
       viseme_name: AZURE_TO_GLTF[v.viseme_id],
       offset_ms: v.offset_ms,
@@ -168,14 +167,15 @@ export const FullCharactor = forwardRef((props, ref) => {
     }));
 
     const bytes = Uint8Array.from(atob(data.audio_file_base64), (c) => c.charCodeAt(0));
-
     const audioURL = URL.createObjectURL(new Blob([bytes], { type: data.mime_type || "audio/mpeg" }));
 
     audioRef.current = new Audio(audioURL);
     audioRef.current.onended = stopAll;
 
-    startVisemes();
+    // FIX: Set start time immediately before playing
+    audioStartTimeRef.current = performance.now();
     audioRef.current.play();
+    startVisemes(); // Start animation loop immediately
 
     if (actions["Talking"]) {
       actions["Talking"].reset().fadeIn(0.2).play();
@@ -192,4 +192,4 @@ export const FullCharactor = forwardRef((props, ref) => {
 });
 
 FullCharactor.displayName = "FullCharactor";
-useGLTF.preload("/models/face.glb");
+useGLTF.preload("/models/newFace.glb");
