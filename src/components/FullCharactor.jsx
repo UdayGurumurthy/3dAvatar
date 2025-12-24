@@ -10,14 +10,11 @@ import { SkeletonUtils } from "three-stdlib";
 import * as THREE from "three";
 
 const SCRIPT_MAP = {
-  Introduction:
-    "Hi! I'm Jenny, your assistant. Let's get started. What is your first name?",
+  Introduction: "Hi! I'm Jenny, your assistant. Let's get started. What is your first name?",
   LastName: "Great. Now please tell me your last name.",
-  PhoneNumber:
-    "Perfect. What is your phone number? Please speak the digits clearly.",
+  PhoneNumber: "Perfect. What is your phone number? Please speak the digits clearly.",
   City: "Thanks. Which city do you currently live in?",
-  Pincode:
-    "Almost done. What is your pin code? Say it clearly so I can understand.",
+  Pincode: "Almost done. What is your pin code? Say it clearly so I can understand.",
   Completion: "All fields have been captured. Would you like to submit now?",
 };
 
@@ -46,304 +43,330 @@ const AZURE_TO_GLTF = {
   21: "Viseme_ID-021",
 };
 
-export const FullCharactor = forwardRef(
-  ({ script, startListening, faceV3CallbackRef, ...props }, ref) => {
-    const group = React.useRef();
-    const { scene, animations } = useGLTF("/models/FaceCharactorV2.glb");
-    const clone = React.useMemo(() => SkeletonUtils.clone(scene), [scene]);
-    const { nodes, materials } = useGraph(clone);
-    const { actions, names } = useAnimations(animations, group);
+export const FullCharactor = forwardRef(({ script, startListening, faceV3CallbackRef, ...props }, ref) => {
+  const group = React.useRef();
+  const { scene, animations } = useGLTF("/models/newFace.glb");
+  const clone = React.useMemo(() => SkeletonUtils.clone(scene), [scene]);
+  const { nodes, materials } = useGraph(clone);
+  const { actions, names } = useAnimations(animations, group);
 
-    const morphMeshesRef = useRef([]);
-    const audioRef = useRef(null);
-    const visemeTimelineRef = useRef([]);
-    const frameRef = useRef(null);
+  const morphMeshesRef = useRef([]);
+  const audioRef = useRef(null);
+  const visemeTimelineRef = useRef([]);
+  const frameRef = useRef(null);
 
-    const promptIndexRef = useRef(0);
-    const fetchingRef = useRef(false);
-    const animationRunningRef = useRef(false);
-    const [started, setStarted] = useState(false);
-    const lastScriptRef = useRef(script);
+  const promptIndexRef = useRef(0);
+  const fetchingRef = useRef(false);
+  const animationRunningRef = useRef(false);
+  const [started, setStarted] = useState(false);
+  const lastScriptRef = useRef(script);
+  const audioStartTimeRef = useRef(0);
 
-    useEffect(() => {
-      const meshes = [];
-      clone.traverse((o) => {
-        if (o.isMesh && o.morphTargetDictionary) {
-          o.morphTargetInfluences.fill(0);
-          meshes.push(o);
+  useEffect(() => {
+    const meshes = [];
+    clone.traverse((o) => {
+      if (o.isMesh && o.morphTargetDictionary) {
+        o.morphTargetInfluences.fill(0);
+        meshes.push(o);
+      }
+    });
+    morphMeshesRef.current = meshes;
+
+    // ⏳ wait 10 seconds, then hide loader
+    const timer = setTimeout(() => {
+      props.setShowLoader(false);
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [clone]);
+
+  useEffect(() => {
+    if (!animations) return;
+    animations.forEach((clip) => {
+      clip.tracks = clip.tracks.filter(
+        (t) => !t.name.includes("morphTargetInfluences") && !t.name.toLowerCase().includes("face")
+      );
+    });
+  }, [animations]);
+
+  useEffect(() => {
+    if (!actions || !names.length) return;
+    const action = actions[names[0]];
+    if (!action) return;
+    action.reset();
+    action.time = 0.5;
+    action.fadeIn(0.5).play();
+  }, [actions, names]);
+
+  function hardReset() {
+    morphMeshesRef.current.forEach((m) => {
+      if (m.morphTargetInfluences) {
+        m.morphTargetInfluences.fill(0);
+      }
+    });
+  }
+
+  function smoothResetAll() {
+    animationRunningRef.current = false;
+    if (frameRef.current) cancelAnimationFrame(frameRef.current);
+
+    let t = 0;
+    function animate() {
+      t += 0.06;
+
+      morphMeshesRef.current.forEach((mesh) => {
+        const infl = mesh.morphTargetInfluences;
+        if (!infl) return;
+        for (let i = 0; i < infl.length; i++) {
+          infl[i] = THREE.MathUtils.lerp(infl[i], 0, 0.25);
         }
       });
-      morphMeshesRef.current = meshes;
 
-      // ⏳ wait 10 seconds, then hide loader
-      const timer = setTimeout(() => {
-        props.setShowLoader(false);
-      }, 5000);
+      if (t < 1) requestAnimationFrame(animate);
+    }
+    animate();
+  }
 
-      return () => clearTimeout(timer);
-    }, [clone]);
+  const SYNC_OFFSET_MS = -20;
+  function startVisemeAnimation() {
+    if (!audioRef.current) return;
+    animationRunningRef.current = true;
 
-    useEffect(() => {
-      if (!animations) return;
-      animations.forEach((clip) => {
-        clip.tracks = clip.tracks.filter(
-          (t) =>
-            !t.name.includes("morphTargetInfluences") &&
-            !t.name.toLowerCase().includes("face")
+    const FADE_IN = 110;
+    const FADE_OUT = 110;
+    const MAX_STRENGTH = 0.65;
+    const DECAY = 0.12;
+
+    function animate() {
+      if (!animationRunningRef.current || !audioRef.current) return;
+
+      // CRITICAL FIX: Remove the offset completely for now
+      // We'll add it back only if needed after testing
+      const now = performance.now() - audioStartTimeRef.current + SYNC_OFFSET_MS;
+
+      // Debug: Log timing for first viseme
+      if (visemeTimelineRef.current.length > 0 && now < 200) {
+        console.log(
+          `Time: ${now.toFixed(1)}ms, First viseme at: ${visemeTimelineRef.current[0].offset_ms}ms`
         );
-      });
-    }, [animations]);
+      }
 
-    useEffect(() => {
-      if (!actions || !names.length) return;
-      const action = actions[names[0]];
-      if (!action) return;
-      action.reset();
-      action.time = 0.5;
-      action.fadeIn(0.5).play();
-    }, [actions, names]);
+      morphMeshesRef.current.forEach((mesh) => {
+        const dict = mesh.morphTargetDictionary;
+        const infl = mesh.morphTargetInfluences;
+        if (!dict || !infl) return;
 
-    function hardReset() {
-      morphMeshesRef.current.forEach((m) => {
-        if (m.morphTargetInfluences) {
-          m.morphTargetInfluences.fill(0);
+        // Smooth decay
+        for (let i = 0; i < infl.length; i++) {
+          infl[i] = THREE.MathUtils.lerp(infl[i], 0, DECAY);
+        }
+
+        for (const v of visemeTimelineRef.current) {
+          const t = now - v.offset_ms;
+
+          if (t < -FADE_IN || t > v.duration_ms + FADE_OUT) continue;
+
+          let s = 0;
+          if (t >= 0 && t <= FADE_IN) {
+            s = THREE.MathUtils.smoothstep(t / FADE_IN, 0, 1);
+          } else if (t > FADE_IN && t < v.duration_ms) {
+            s = 1;
+          } else if (t >= v.duration_ms) {
+            s = 1 - THREE.MathUtils.smoothstep((t - v.duration_ms) / FADE_OUT, 0, 1);
+          }
+
+          const idx = dict[v.viseme_name];
+          if (idx !== undefined) {
+            infl[idx] = Math.max(infl[idx], s * MAX_STRENGTH);
+          }
         }
       });
+
+      frameRef.current = requestAnimationFrame(animate);
     }
 
-    function smoothResetAll() {
-      animationRunningRef.current = false;
-      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    animate();
+  }
 
-      let t = 0;
-      function animate() {
-        t += 0.06;
-
-        morphMeshesRef.current.forEach((mesh) => {
-          const infl = mesh.morphTargetInfluences;
-          if (!infl) return;
-          for (let i = 0; i < infl.length; i++) {
-            infl[i] = THREE.MathUtils.lerp(infl[i], 0, 0.25);
-          }
-        });
-
-        if (t < 1) requestAnimationFrame(animate);
-      }
-      animate();
+  function forceStopAudioAndAnimation() {
+    animationRunningRef.current = false;
+    if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    if (audioRef.current) {
+      try {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      } catch {}
     }
-    function startVisemeAnimation() {
-      if (!audioRef.current) return;
-      animationRunningRef.current = true;
+  }
 
-      const FADE_IN = 120;
-      const FADE_OUT = 180;
-      const MAX_STRENGTH = 0.5;
-      const DECAY = 0.12;
+  async function fetchVisemeData(text) {
+    props.setIsLoading(true);
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
 
-      function animate() {
-        if (!animationRunningRef.current || !audioRef.current) return;
+    try {
+      const res = await fetch(
+        `https://avatar-dev-api.dtskill.com/api/generate-viseme/?text=${encodeURIComponent(text)}`
+      );
 
-        const now = audioRef.current.currentTime * 1000;
+      const data = await res.json();
+      const raw = data.visemes || [];
 
-        morphMeshesRef.current.forEach((mesh) => {
-          const dict = mesh.morphTargetDictionary;
-          const infl = mesh.morphTargetInfluences;
-          if (!dict || !infl) return;
+      // Build viseme timeline
+      visemeTimelineRef.current = raw.map((v, i) => {
+        const next = raw[i + 1];
+        return {
+          viseme_id: v.viseme_id,
+          viseme_name: AZURE_TO_GLTF[v.viseme_id],
+          offset_ms: v.offset_ms,
+          duration_ms: next ? next.offset_ms - v.offset_ms : 120,
+        };
+      });
 
-          // Smooth decay (prevents mouth sticking)
-          for (let i = 0; i < infl.length; i++) {
-            infl[i] = THREE.MathUtils.lerp(infl[i], 0, DECAY);
+      // Decode base64 audio
+      const bytes = Uint8Array.from(atob(data.audio_file_base64), (c) => c.charCodeAt(0));
+      const audioURL = URL.createObjectURL(new Blob([bytes], { type: data.mime_type || "audio/mpeg" }));
+
+      forceStopAudioAndAnimation();
+
+      const audio = new Audio(audioURL);
+      audioRef.current = audio;
+
+      // Preload audio
+      audio.preload = "auto";
+
+      // When audio finishes
+      audio.onended = () => {
+        animationRunningRef.current = false;
+        hardReset();
+        smoothResetAll();
+        fetchingRef.current = false;
+
+        setTimeout(() => {
+          if (typeof startListening === "function") startListening();
+        }, 400);
+
+        if (faceV3CallbackRef?.current) faceV3CallbackRef.current();
+      };
+
+      // Start animation + audio in perfect sync
+      const playAudioWithSync = async () => {
+        try {
+          // Wait for audio to be fully ready
+          if (audio.readyState < 3) {
+            await new Promise((resolve) => {
+              audio.addEventListener("canplaythrough", resolve, { once: true });
+            });
           }
 
-          for (const v of visemeTimelineRef.current) {
-            const t = now - v.offset_ms;
+          // CRITICAL: Set a future start time first
+          const scheduledStartTime = performance.now() + 50; // Schedule 50ms in future
 
-            // Skip visemes out of range
-            if (t < -FADE_IN || t > v.duration_ms + FADE_OUT) continue;
+          // Start animation timer BEFORE animation loop begins
+          audioStartTimeRef.current = scheduledStartTime;
 
-            let s = 0;
+          // Start animation immediately
+          startVisemeAnimation();
 
-            // Fade in
-            if (t >= 0 && t <= FADE_IN) {
-              s = THREE.MathUtils.smoothstep(t / FADE_IN, 0, 1);
-            }
-            // Hold
-            else if (t > FADE_IN && t < v.duration_ms) {
-              s = 1;
-            }
-            // Fade out
-            else if (t >= v.duration_ms) {
-              s =
-                1 -
-                THREE.MathUtils.smoothstep(
-                  (t - v.duration_ms) / FADE_OUT,
-                  0,
-                  1
-                );
-            }
+          // Play audio - but schedule it to match our timer
+          const playPromise = audio.play();
 
-            const idx = dict[v.viseme_name];
-            if (idx !== undefined) {
-              infl[idx] = Math.max(infl[idx], s * MAX_STRENGTH);
-            }
+          // IMPORTANT: Small delay to match the scheduled time
+          await playPromise;
+
+          // If audio started earlier than scheduled, adjust the timer
+          const actualStartTime = performance.now();
+          const timeDiff = actualStartTime - scheduledStartTime;
+
+          // Adjust timer if there was a discrepancy
+          if (Math.abs(timeDiff) > 5) {
+            audioStartTimeRef.current = actualStartTime;
           }
-        });
+        } catch (error) {
+          console.error("Audio play failed:", error);
+          fetchingRef.current = false;
+        }
+      };
 
-        frameRef.current = requestAnimationFrame(animate);
-      }
-
-      animate();
+      // Start playback
+      playAudioWithSync();
+    } catch (err) {
+      console.error("Viseme fetch error:", err);
+      fetchingRef.current = false;
     }
+  }
+  function playNextPrompt() {
+    const text = SCRIPT_MAP[script];
+    if (!text) return;
 
-    function forceStopAudioAndAnimation() {
+    if (promptIndexRef.current >= 1) return;
+    promptIndexRef.current = 1;
+
+    fetchVisemeData(text);
+  }
+
+  function handleStart() {
+    promptIndexRef.current = 0;
+    hardReset();
+    setStarted(true);
+
+    setTimeout(() => playNextPrompt(), 400);
+  }
+
+  useEffect(() => {
+    if (!started) return;
+    if (script === lastScriptRef.current) return;
+
+    lastScriptRef.current = script;
+
+    promptIndexRef.current = 0;
+    forceStopAudioAndAnimation();
+    fetchingRef.current = false;
+
+    setTimeout(() => playNextPrompt(), 250);
+  }, [script, started]);
+
+  useEffect(() => {
+    return () => {
       animationRunningRef.current = false;
       if (frameRef.current) cancelAnimationFrame(frameRef.current);
       if (audioRef.current) {
         try {
           audioRef.current.pause();
-          audioRef.current.currentTime = 0;
+          audioRef.current.src = "";
         } catch {}
       }
-    }
+    };
+  }, []);
+  useEffect(() => {
+    clone.position.set(0, 0, 0);
+    clone.rotation.set(0, 0, 0);
+    clone.scale.set(1, 1, 1);
+    clone.updateMatrixWorld(true);
+  }, [clone]);
 
-    async function fetchVisemeData(text) {
-      props.setIsLoading(true);
-      if (fetchingRef.current) return;
-      fetchingRef.current = true;
-
-      try {
-        const res = await fetch(
-          `http://127.0.0.1:8000/api/generate-viseme/?text=${encodeURIComponent(
-            text
-          )}`
-        );
-
-        const data = await res.json();
-        const raw = data.visemes || [];
-
-        // Build viseme timeline with computed durations
-        visemeTimelineRef.current = raw.map((v, i) => {
-          const next = raw[i + 1];
-          return {
-            viseme_id: v.viseme_id,
-            viseme_name: AZURE_TO_GLTF[v.viseme_id], // <— IMPORTANT
-            offset_ms: v.offset_ms,
-            duration_ms: next ? next.offset_ms - v.offset_ms : 120,
-          };
-        });
-
-        // Decode base64 audio
-        const bytes = Uint8Array.from(atob(data.audio_file_base64), (c) =>
-          c.charCodeAt(0)
-        );
-        const audioURL = URL.createObjectURL(
-          new Blob([bytes], { type: data.mime_type || "audio/mpeg" })
-        );
-
-        forceStopAudioAndAnimation();
-
-        const audio = new Audio(audioURL);
-        audioRef.current = audio;
-
-        // When audio finishes
-        audio.onended = () => {
-          animationRunningRef.current = false;
-
-          // FIX: Force mouth close fully
-          hardReset();
-          smoothResetAll();
-
-          fetchingRef.current = false;
-
-          setTimeout(() => {
-            if (typeof startListening === "function") startListening();
-          }, 400);
-
-          if (faceV3CallbackRef?.current) faceV3CallbackRef.current();
-        };
-
-        // Start animation + audio
-        startVisemeAnimation();
-        audio.play();
-      } catch (err) {
-        console.error("Viseme fetch error:", err);
-        fetchingRef.current = false;
-      }
-    }
-
-    function playNextPrompt() {
-      const text = SCRIPT_MAP[script];
-      if (!text) return;
-
-      if (promptIndexRef.current >= 1) return;
-      promptIndexRef.current = 1;
-
-      fetchVisemeData(text);
-    }
-
-    function handleStart() {
-      promptIndexRef.current = 0;
-      hardReset();
-      setStarted(true);
-
-      setTimeout(() => playNextPrompt(), 400);
-    }
-
-    useEffect(() => {
-      if (!started) return;
-      if (script === lastScriptRef.current) return;
-
-      lastScriptRef.current = script;
-
-      promptIndexRef.current = 0;
-      forceStopAudioAndAnimation();
-      fetchingRef.current = false;
-
-      setTimeout(() => playNextPrompt(), 250);
-    }, [script, started]);
-
-    useEffect(() => {
-      return () => {
-        animationRunningRef.current = false;
-        if (frameRef.current) cancelAnimationFrame(frameRef.current);
-        if (audioRef.current) {
-          try {
-            audioRef.current.pause();
-            audioRef.current.src = "";
-          } catch {}
-        }
-      };
-    }, []);
-    useEffect(() => {
-      clone.position.set(0, 0, 0);
-      clone.rotation.set(0, 0, 0);
-      clone.scale.set(1, 1, 1);
-      clone.updateMatrixWorld(true);
-    }, [clone]);
-
-    return (
-      <group ref={group} {...props} dispose={null} scale={6}>
-        {!started && (
-          <Html fullscreen className="pointer-events-auto">
-            <div className="w-full h-full flex items-end justify-center pb-10">
-              <div
-                onClick={handleStart}
-                className="cursor-pointer px-6 py-3 text-lg md:text-xl rounded-lg 
+  return (
+    <group ref={group} {...props} dispose={null} scale={6}>
+      {!started && (
+        <Html fullscreen className="pointer-events-auto">
+          <div className="w-full h-full flex items-end justify-center pb-10">
+            <div
+              onClick={handleStart}
+              className="cursor-pointer px-6 py-3 text-lg md:text-xl rounded-lg 
             bg-black/60 text-white border border-white/40 
             backdrop-blur-sm hover:bg-black/80 transition-all"
-              >
-                Click to Begin
-              </div>
+            >
+              Click to Begin
             </div>
-          </Html>
-        )}
+          </div>
+        </Html>
+      )}
 
-        <group scale={35} position={[0, -42, 0]}>
-          <primitive object={clone} />
-        </group>
+      <group scale={35} position={[0, -42, 0]}>
+        <primitive object={clone} />
       </group>
-    );
-  }
-);
+    </group>
+  );
+});
 export default FullCharactor;
-useGLTF.preload("/models/FaceCharactorV2.glb");
+useGLTF.preload("/models/newFace.glb");
