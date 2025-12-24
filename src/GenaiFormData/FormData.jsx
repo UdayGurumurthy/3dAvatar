@@ -93,29 +93,16 @@ export default function VoiceForm() {
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-md p-4 bg-transparent backdrop-blur-lg rounded-xl shadow-lg flex gap-2">
         <label className="px-3 py-2 rounded-full bg-gray-200 cursor-pointer">
           Upload
-          <input
-            type="file"
-            accept=".glb"
-            onChange={handleModelUpload}
-            className="hidden"
-          />
+          <input type="file" accept=".glb" onChange={handleModelUpload} className="hidden" />
         </label>
 
         <button
           onClick={toggleMic}
           disabled={isLoading || isCompleted}
-          className={`px-3 py-2 rounded-full ${
-            isListening ? "bg-green-500 text-white" : "bg-gray-200"
-          }`}
+          className={`px-3 py-2 rounded-full ${isListening ? "bg-green-500 text-white" : "bg-gray-200"}`}
         >
           {isListening ? (
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 20 20"
-              fill="none"
-            >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
               {" "}
               <g clip-path="url(#clip0_13155_63964)">
                 {" "}
@@ -133,13 +120,7 @@ export default function VoiceForm() {
               </defs>{" "}
             </svg>
           ) : (
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 20 20"
-              fill="none"
-            >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
               {" "}
               <g clip-path="url(#clip0_13155_64112)">
                 {" "}

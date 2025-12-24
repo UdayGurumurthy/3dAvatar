@@ -1,17 +1,10 @@
-import React, {
-  useEffect,
-  useRef,
-  useMemo,
-  forwardRef,
-  useImperativeHandle,
-} from "react";
+import React, { useEffect, useRef, useMemo, forwardRef, useImperativeHandle } from "react";
 import { useGLTF, useAnimations } from "@react-three/drei";
 import { SkeletonUtils } from "three-stdlib";
 import * as THREE from "three";
 import { useControls } from "leva";
 
-const STATIC_MODEL =
-  "https://avatar-main.s3.ap-south-1.amazonaws.com/face-yes+viseme+updated.glb";
+const STATIC_MODEL = "https://avatar-main.s3.ap-south-1.amazonaws.com/face-yes+viseme+updated.glb";
 
 const AZURE_TO_GLTF = {
   0: "",
@@ -39,10 +32,7 @@ const AZURE_TO_GLTF = {
 };
 
 export const FullCharactor = forwardRef(
-  (
-    { modelUrl, setShowLoader, setIsLoading, setIsCompleted, ...props },
-    ref
-  ) => {
+  ({ modelUrl, setShowLoader, setIsLoading, setIsCompleted, ...props }, ref) => {
     const group = useRef();
 
     const glbPath = modelUrl || STATIC_MODEL;
@@ -50,12 +40,36 @@ export const FullCharactor = forwardRef(
 
     const clone = useMemo(() => SkeletonUtils.clone(scene), [scene]);
 
-    const clonedAnimations = useMemo(
-      () => (animations ? animations.map((a) => a.clone()) : []),
-      [animations]
-    );
+    const { actions, names } = useAnimations(animations, clone);
+    // const clonedAnimations = useMemo(
+    //   () => (animations ? animations.map((a) => a.clone()) : []),
+    //   [animations]
+    // );
 
-    const { actions, names } = useAnimations(clonedAnimations, group);
+    // 3️⃣ Auto-play animation when model changes
+    useEffect(() => {
+      if (!actions || names.length === 0) return;
+
+      // Stop previous animations
+      Object.values(actions).forEach((a) => a.stop());
+
+      // Play first animation safely
+      actions[names[0]]?.reset().fadeIn(0.3).play();
+
+      console.log("Loaded animations:", names);
+    }, [modelUrl, actions, names]);
+
+    // const { actions, names } = useAnimations(clonedAnimations, group);
+
+    useEffect(() => {
+      console.log("Scene loaded:", scene);
+      console.log("Clone:", clone);
+      console.log("Animations:", names);
+    }, [scene, clone, names]);
+
+    useEffect(() => {
+      console.log("GLB PATH USED", glbPath);
+    }, [glbPath]);
 
     const morphMeshesRef = useRef([]);
     const audioRef = useRef(null);
@@ -68,11 +82,7 @@ export const FullCharactor = forwardRef(
     const hasMorphTargets = useMemo(() => {
       let found = false;
       clone.traverse((o) => {
-        if (
-          o.isMesh &&
-          o.morphTargetDictionary &&
-          Object.keys(o.morphTargetDictionary).length
-        ) {
+        if (o.isMesh && o.morphTargetDictionary && Object.keys(o.morphTargetDictionary).length) {
           found = true;
         }
       });
@@ -109,19 +119,9 @@ export const FullCharactor = forwardRef(
       Object.values(actions).forEach((a) => a.stop());
       if (animationControls.play && animationControls.clip) {
         const action = actions[animationControls.clip];
-        action
-          ?.reset()
-          .setEffectiveTimeScale(animationControls.speed)
-          .fadeIn(0.3)
-          .play();
+        action?.reset().setEffectiveTimeScale(animationControls.speed).fadeIn(0.3).play();
       }
-    }, [
-      animationControls.play,
-      animationControls.clip,
-      animationControls.speed,
-      hasAnimations,
-      actions,
-    ]);
+    }, [animationControls.play, animationControls.clip, animationControls.speed, hasAnimations, actions]);
 
     useEffect(() => {
       const meshes = [];
@@ -132,8 +132,8 @@ export const FullCharactor = forwardRef(
         }
       });
       morphMeshesRef.current = meshes;
-      const timer = setTimeout(() => setShowLoader(false), 5000);
-      return () => clearTimeout(timer);
+      // const timer = setTimeout(() => setShowLoader(false), 5000);
+      // return () => clearTimeout(timer);
     }, [clone, setShowLoader]);
 
     const morphNames = useMemo(() => {
@@ -142,6 +142,11 @@ export const FullCharactor = forwardRef(
         Object.keys(m.morphTargetDictionary || {}).forEach((k) => set.add(k))
       );
       return Array.from(set);
+    }, [clone]);
+
+    useEffect(() => {
+      if (!clone) return;
+      setShowLoader(false);
     }, [clone]);
 
     const morphControls = useControls(
@@ -229,14 +234,11 @@ export const FullCharactor = forwardRef(
       setIsLoading(true);
       stopAll();
 
-      const res = await fetch(
-        "https://avatar-dev-api.dtskill.com/api/generate-viseme/",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text }),
-        }
-      );
+      const res = await fetch("https://avatar-dev-api.dtskill.com/api/generate-viseme/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
 
       if (!res.ok) return;
 
@@ -248,40 +250,52 @@ export const FullCharactor = forwardRef(
         duration_ms: arr[i + 1]?.offset_ms - v.offset_ms || 120,
       }));
 
-      const bytes = Uint8Array.from(atob(data.audio_file_base64), (c) =>
-        c.charCodeAt(0)
-      );
+      const bytes = Uint8Array.from(atob(data.audio_file_base64), (c) => c.charCodeAt(0));
 
-      const audioURL = URL.createObjectURL(
-        new Blob([bytes], { type: data.mime_type || "audio/mpeg" })
-      );
+      const audioURL = URL.createObjectURL(new Blob([bytes], { type: data.mime_type || "audio/mpeg" }));
 
       audioRef.current = new Audio(audioURL);
-      audioRef.current.onended = stopAll;
+      audioRef.current.onended = () => {
+        const talk = actions?.Talk || actions?.Talking || actions?.Speak;
+        const idle = actions?.Idle || actions?.[names[0]];
+
+        talk?.fadeOut(0.2);
+        idle?.reset().fadeIn(0.2).play();
+        stopAll();
+      };
 
       startVisemes();
       audioRef.current.play();
     }
 
-    useImperativeHandle(ref, () => ({ speak }));
+    // useImperativeHandle(ref, () => ({ speak }));
+
+    useImperativeHandle(ref, () => ({
+      speak(text) {
+        // switch to talk animation
+        const talk = actions?.Talk || actions?.Talking || actions?.Speak;
+        const idle = actions?.Idle || actions?.[names[0]];
+
+        if (talk) {
+          idle?.fadeOut(0.2);
+          talk.reset().fadeIn(0.2).play();
+        }
+
+        // REAL speech + visemes
+        speak(text);
+      },
+    }));
 
     return (
       <group
         ref={group}
         dispose={null}
-        position={[
-          avatarControls.position.x,
-          avatarControls.position.y,
-          avatarControls.position.z,
-        ]}
-        rotation={[
-          avatarControls.rotation.x,
-          avatarControls.rotation.y,
-          avatarControls.rotation.z,
-        ]}
+        position={[avatarControls.position.x, avatarControls.position.y, avatarControls.position.z]}
+        rotation={[avatarControls.rotation.x, avatarControls.rotation.y, avatarControls.rotation.z]}
         scale={avatarControls.scale}
         {...props}
       >
+        {/* ✅ RENDER CLONE, NOT SCENE */}
         <primitive object={clone} />
       </group>
     );

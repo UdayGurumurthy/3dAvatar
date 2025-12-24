@@ -1,10 +1,5 @@
 // src/components/Experience.jsx
-import {
-  Environment,
-  OrbitControls,
-  PerspectiveCamera,
-  useTexture,
-} from "@react-three/drei";
+import { Environment, OrbitControls, PerspectiveCamera, useTexture } from "@react-three/drei";
 import { FaceV2 } from "./FaceV2";
 import { FaceV3 } from "./FaceV3";
 import { useThree } from "@react-three/fiber";
