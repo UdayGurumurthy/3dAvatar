@@ -1,11 +1,17 @@
-import React, { useEffect, useRef, useMemo, forwardRef, useImperativeHandle } from "react";
-import { useGraph } from "@react-three/fiber";
+import React, {
+  useEffect,
+  useRef,
+  useMemo,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
+// import { useGraph } from "@react-three/fiber";
 import { useGLTF, useAnimations, Html } from "@react-three/drei";
 import { SkeletonUtils } from "three-stdlib";
 import * as THREE from "three";
 
 const AZURE_TO_GLTF = {
-  0: "",
+  0: "Viseme_ID-000",
   1: "Viseme_ID-001",
   2: "Viseme_ID-002",
   3: "Viseme_ID-003",
@@ -32,9 +38,9 @@ const AZURE_TO_GLTF = {
 export const FullCharactor = forwardRef((props, ref) => {
   const group = useRef();
 
-  const { scene, animations } = useGLTF("/models/newFace.glb");
+  const { scene, animations } = useGLTF("/models/FullCharactorV4.glb");
   const clone = useMemo(() => SkeletonUtils.clone(scene), [scene]);
-  const { nodes, materials } = useGraph(clone);
+  // const { nodes, materials } = useGraph(clone);
   const { actions, names } = useAnimations(animations, group);
 
   const morphMeshesRef = useRef([]);
@@ -48,7 +54,9 @@ export const FullCharactor = forwardRef((props, ref) => {
     if (!animations) return;
     animations.forEach((clip) => {
       clip.tracks = clip.tracks.filter(
-        (t) => !t.name.includes("morphTargetInfluences") && !t.name.toLowerCase().includes("face")
+        (t) =>
+          !t.name.includes("morphTargetInfluences") &&
+          !t.name.toLowerCase().includes("face")
       );
     });
   }, [animations]);
@@ -103,7 +111,8 @@ export const FullCharactor = forwardRef((props, ref) => {
       if (!isSpeakingRef.current || !audioRef.current) return;
 
       const AUDIO_LATENCY_MS = 120; // tune 70–120
-      const now = performance.now() - audioStartTimeRef.current - AUDIO_LATENCY_MS;
+      const now =
+        performance.now() - audioStartTimeRef.current - AUDIO_LATENCY_MS;
 
       morphMeshesRef.current.forEach((mesh) => {
         const dict = mesh.morphTargetDictionary;
@@ -124,7 +133,9 @@ export const FullCharactor = forwardRef((props, ref) => {
           } else if (t > FADE_IN && t < v.duration_ms) {
             s = 1;
           } else if (t >= v.duration_ms) {
-            s = 1 - THREE.MathUtils.smoothstep((t - v.duration_ms) / FADE_OUT, 0, 1);
+            s =
+              1 -
+              THREE.MathUtils.smoothstep((t - v.duration_ms) / FADE_OUT, 0, 1);
           }
 
           const idx = dict[v.viseme_name];
@@ -152,11 +163,14 @@ export const FullCharactor = forwardRef((props, ref) => {
     if (!text) return;
     stopAll();
 
-    const res = await fetch("https://avatar-dev-api.dtskill.com/api/generate-viseme/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
-    });
+    const res = await fetch(
+      "https://avatar-dev-api.dtskill.com/api/generate-viseme/",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      }
+    );
     if (!res.ok) return;
 
     const data = await res.json();
@@ -166,8 +180,12 @@ export const FullCharactor = forwardRef((props, ref) => {
       duration_ms: arr[i + 1]?.offset_ms - v.offset_ms || 120,
     }));
 
-    const bytes = Uint8Array.from(atob(data.audio_file_base64), (c) => c.charCodeAt(0));
-    const audioURL = URL.createObjectURL(new Blob([bytes], { type: data.mime_type || "audio/mpeg" }));
+    const bytes = Uint8Array.from(atob(data.audio_file_base64), (c) =>
+      c.charCodeAt(0)
+    );
+    const audioURL = URL.createObjectURL(
+      new Blob([bytes], { type: data.mime_type || "audio/mpeg" })
+    );
 
     audioRef.current = new Audio(audioURL);
     audioRef.current.onended = stopAll;
@@ -185,11 +203,17 @@ export const FullCharactor = forwardRef((props, ref) => {
   useImperativeHandle(ref, () => ({ speak }));
 
   return (
-    <group ref={group} {...props} dispose={null} scale={300} position={[0, -400, 1.104]}>
+    <group
+      ref={group}
+      {...props}
+      dispose={null}
+      scale={300}
+      position={[0, -400, 1.104]}
+    >
       <primitive object={clone} />
     </group>
   );
 });
 
 FullCharactor.displayName = "FullCharactor";
-useGLTF.preload("/models/newFace.glb");
+useGLTF.preload("/models/FullCharactorV4.glb");
