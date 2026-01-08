@@ -10,7 +10,6 @@ import VoiceInputField from "./components/VoiceInputField";
 import { useWebSpeech } from "../hooks/useWebSpeech";
 import { Experience } from "../components/Experience";
 import { Canvas } from "@react-three/fiber";
-import { Html } from "@react-three/drei";
 
 function useTypingAnimation(text, speed = 50) {
   const [displayedText, setDisplayedText] = useState("");
@@ -158,7 +157,7 @@ export default function FormData() {
 
   return (
     <div className="h-full w-full flex bg-gray-50 overflow-hidden relative">
-      <div className="w-full h-screen">
+      <div className="w-[60%] h-screen">
         <Canvas
           shadows
           camera={{ position: [0, 0, 8], fov: 45 }}
@@ -188,159 +187,165 @@ export default function FormData() {
         </Canvas>
       </div>
 
-      <div className="w-full max-w-md bg-black backdrop-blur-lg  overflow-y-auto text-white">
-        <div className="p-8 h-screen overflow-auto">
-          <h2 className="text-3xl font-bold text-center mb-2 text-white">
-            Meta Form
-          </h2>
+      <div className="w-full bg-black backdrop-blur-lg  overflow-y-auto text-white">
+        <div className="p-8 h-screen overflow-auto flex flex-col justify-center">
+          <div>
+            <h2 className="text-3xl font-bold text-center mb-2 text-white">
+              GenE AI Assistant
+            </h2>
 
-          <p className="text-center text-white text-sm mb-8">
-            {isComplete
-              ? " All fields complete!"
-              : `${isListening ? "🎤 Listening..." : " Ready"} — ${
-                  fieldsOrder[currentFieldIndex]
-                }`}
-          </p>
-
-          {/* Form Fields */}
-          <form
-            className="flex flex-col gap-4"
-            onSubmit={(e) => e.preventDefault()}
-          >
-            <div>
-              <VoiceInputField
-                label="First Name"
-                value={animatedFirstName}
-                active={currentFieldIndex === 0 && isListening}
-              />
-              {formData.firstName && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleRetry(0, "Introduction");
-                  }}
-                  className="w-full mt-2 px-3 py-1 cursor-pointer text-sm bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200 transition"
-                >
-                  Re-record
-                </button>
-              )}
-            </div>
-
-            <div>
-              <VoiceInputField
-                label="Last Name"
-                value={animatedLastName}
-                active={currentFieldIndex === 1 && isListening}
-              />
-              {formData.lastName && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleRetry(1, "LastName");
-                  }}
-                  className="w-full mt-2 px-3 py-1 cursor-pointer text-sm bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200 transition"
-                >
-                  Re-record
-                </button>
-              )}
-            </div>
-
-            <div>
-              <VoiceInputField
-                label="Phone Number"
-                value={animatedPhoneNumber}
-                active={currentFieldIndex === 2 && isListening}
-              />
-              {formData.phoneNumber && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleRetry(2, "PhoneNumber");
-                  }}
-                  className="w-full mt-2 px-3 py-1  cursor-pointer text-sm bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200 transition"
-                >
-                  Re-record
-                </button>
-              )}
-            </div>
-
-            <div>
-              <VoiceInputField
-                label="City"
-                value={animatedCity}
-                active={currentFieldIndex === 3 && isListening}
-              />
-              {formData.city && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleRetry(3, "City");
-                  }}
-                  className="w-full mt-2 px-3 py-1 cursor-pointer text-sm bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200 transition"
-                >
-                  Re-record
-                </button>
-              )}
-            </div>
-
-            <div>
-              <VoiceInputField
-                label="Pin Code"
-                value={animatedPinCode}
-                active={currentFieldIndex === 4 && isListening}
-              />
-              {formData.pinCode && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleRetry(4, "Pincode");
-                  }}
-                  className="w-full mt-2 px-3 py-1 cursor-pointer text-sm bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200 transition"
-                >
-                  Re-record
-                </button>
-              )}
-            </div>
-          </form>
-
-          {!isComplete && !isListening && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                startListening();
-              }}
-              className="w-full mt-6 px-4 py-3 cursor-pointer bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-semibold flex items-center justify-center gap-2"
+            <p className="text-center text-white text-sm mb-8">
+              {isComplete
+                ? " All fields complete!"
+                : `${isListening ? "🎤 Listening..." : " Ready"} — ${
+                    fieldsOrder[currentFieldIndex]
+                  }`}
+            </p>
+          </div>
+          <div className="flex flex-col justify-center p-6 gap-3">
+            <form
+              className="flex flex-col gap-6 px-20 "
+              onSubmit={(e) => e.preventDefault()}
             >
-              Listen Again
-            </button>
-          )}
+              <div>
+                <VoiceInputField
+                  label="First Name"
+                  value={animatedFirstName}
+                  active={currentFieldIndex === 0 && isListening}
+                />
+                {formData.firstName && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleRetry(0, "Introduction");
+                    }}
+                    className="w-full mt-2 px-3 py-1 cursor-pointer text-sm bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200 transition"
+                  >
+                    Re-record
+                  </button>
+                )}
+              </div>
 
-          {/* Listening Indicator */}
-          {isListening && !isComplete && (
-            <div className="w-full mt-6 px-4 py-3 bg-green-100 border border-green-400 rounded-lg text-center">
-              <p className="text-green-700 font-semibold">🎤 Listening...</p>
-              <p className="text-sm text-green-600 mt-1">
-                Speak now or click "Listen Again" to retry
-              </p>
+              <div>
+                <VoiceInputField
+                  label="Last Name"
+                  value={animatedLastName}
+                  active={currentFieldIndex === 1 && isListening}
+                />
+                {formData.lastName && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleRetry(1, "LastName");
+                    }}
+                    className="w-full mt-2 px-3 py-1 cursor-pointer text-sm bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200 transition"
+                  >
+                    Re-record
+                  </button>
+                )}
+              </div>
+
+              <div>
+                <VoiceInputField
+                  label="Phone Number"
+                  value={animatedPhoneNumber}
+                  active={currentFieldIndex === 2 && isListening}
+                />
+                {formData.phoneNumber && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleRetry(2, "PhoneNumber");
+                    }}
+                    className="w-full mt-2 px-3 py-1  cursor-pointer text-sm bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200 transition"
+                  >
+                    Re-record
+                  </button>
+                )}
+              </div>
+
+              <div>
+                <VoiceInputField
+                  label="City"
+                  value={animatedCity}
+                  active={currentFieldIndex === 3 && isListening}
+                />
+                {formData.city && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleRetry(3, "City");
+                    }}
+                    className="w-full mt-2 px-3 py-1 cursor-pointer text-sm bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200 transition"
+                  >
+                    Re-record
+                  </button>
+                )}
+              </div>
+
+              <div>
+                <VoiceInputField
+                  label="Pin Code"
+                  value={animatedPinCode}
+                  active={currentFieldIndex === 4 && isListening}
+                />
+                {formData.pinCode && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleRetry(4, "Pincode");
+                    }}
+                    className="w-full mt-2 px-3 py-1 cursor-pointer text-sm bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200 transition"
+                  >
+                    Re-record
+                  </button>
+                )}
+              </div>
+            </form>
+            <div className="px-20">
+              {!isComplete && !isListening && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    startListening();
+                  }}
+                  className="w-full mt-6 px-4 py-3 cursor-pointer bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-semibold flex items-center justify-center gap-2"
+                >
+                  Listen Again
+                </button>
+              )}
+
+              {/* Listening Indicator */}
+              {isListening && !isComplete && (
+                <div className="w-full mt-6 px-4 py-3 bg-green-100 border border-green-400 rounded-lg text-center">
+                  <p className="text-green-700 font-semibold">
+                    🎤 Listening...
+                  </p>
+                  <p className="text-sm text-green-600 mt-1">
+                    Speak now or click "Listen Again" to retry
+                  </p>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleReset();
+                }}
+                className="w-full mt-4 px-4 py-2 cursor-pointer bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition-all"
+              >
+                Reset Form
+              </button>
             </div>
-          )}
-
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              handleReset();
-            }}
-            className="w-full mt-4 px-4 py-2 cursor-pointer bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition-all"
-          >
-            Reset Form
-          </button>
+          </div>
+          {/* Form Fields */}
         </div>
       </div>
 
